@@ -7,15 +7,18 @@
   "author": "REV team",
   "license": "AGPL-3.0-only",
   "private": true,
-  "scripts":{
-    "start":"node dist/main",
-    "build":"tsc",
-    "watch":"tsc --watch",
-    "lint":"eslint --fix"
+  "scripts": {
+    "start": "node dist/main",
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "lint": "eslint --fix",
+    "e2e": "ts-node node_modules/tape/bin/tape src/**/*.e2e.ts"
   },
   "devDependencies": {
     "@types/express": "^4.17.18",
     "@types/node": "^20.6.5",
+    "@types/supertest": "^2.0.13",
+    "@types/tape": "^5.6.1",
     "@types/ws": "^8.5.5",
     "@typescript-eslint/eslint-plugin": "^6.4.0",
     "@typescript-eslint/parser": "^6.7.2",
@@ -28,6 +31,9 @@
     "eslint-plugin-prettier": "^5.0.0",
     "eslint-plugin-promise": "^6.1.1",
     "prettier": "^3.0.3",
+    "supertest": "^6.3.3",
+    "tape": "^5.7.0",
+    "ts-node": "^10.9.1",
     "typescript": "^5.2.2"
   },
   "dependencies": {

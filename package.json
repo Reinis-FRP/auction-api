@@ -23,6 +23,7 @@
     "typescript": "^5.2.2"
   },
   "dependencies": {
-    "ethers": "^5.7.2"
+    "ethers": "^5.7.2",
+    "superstruct": "^1.0.3"
   }
 }

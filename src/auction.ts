@@ -5,7 +5,7 @@ interface AuctionConfig {
   bidWaitTimeMs: number;
 }
 
-const DepositStruct = ss.object({
+export const DepositStruct = ss.object({
   recipient: ss.string(),
   tokenAddress: ss.string(),
   amount: ss.string(), // This was BigNumber in Frontend.
@@ -17,9 +17,9 @@ const DepositStruct = ss.object({
   txValue: ss.string(), // This was BigNumber in Frontend.
 });
 
-type DepositData = ss.Infer<typeof DepositStruct>;
+export type DepositData = ss.Infer<typeof DepositStruct>;
 
-interface AuctionData {
+export interface AuctionData {
   auctionId: string;
   depositData: DepositData;
 }

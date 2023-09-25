@@ -10,7 +10,7 @@
       "strict": true,
       "noImplicitAny": false
     },
-    "include": ["./src", "./index.ts"],
+    "include": ["./src"],
     "watchOptions": {
       "watchFile": "useFsEventsOnParentDirectory",
       "watchDirectory": "useFsEvents",

@@ -36,18 +36,10 @@ export function ExpressApp(_auction:auction.Auction) {
     next(new Error("Invalid Request"));
   });
 
-  app.use(function (err: Error, req: Request, res: Response) {
+  app.use(function (err: Error, req: Request, res: Response, next:NextFunction) {
     res.status(500).send(err.message || err);
   });
 
   return app;
 }
 
-export async function Init(config: Config, auction:auction.Auction) {
-  const app = await ExpressApp(auction);
-  await new Promise((res) => {
-    app.listen(config.port, () => res(app));
-  });
-  console.log('Listening on ' + config.port)
-  return app
-}

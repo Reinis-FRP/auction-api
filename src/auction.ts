@@ -21,7 +21,7 @@ type DepositData = ss.Infer<typeof DepositStruct>;
 
 interface AuctionData {
   auctionId: string;
-  deposit: DepositData;
+  depositData: DepositData;
 }
 
 type EmitDeposit = (type: 'Deposit', dataType: AuctionData) => void;

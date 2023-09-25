@@ -1,38 +1,37 @@
 import { BigNumber, constants as ethersConstants, utils as ethersUtils } from "ethers";
+import * as ss from "superstruct";
 
 interface AuctionConfig {
   bidWaitTimeMs: number;
 }
 
-interface DepositData {
-  recipient: string;
-  tokenAddress: string;
-  amount: string; // This was BigNumber in Frontend.
-  destinationChainId: number; // This is ChainId Enum in Frontend.
-  relayerFeePct: string; // This was BigNumber in Frontend.
-  quoteTimestamp: string; // This was BigNumber in Frontend.
-  message: string;
-  maxCount: string; // This was BigNumber in Frontend.
-  txValue: string; // This was BigNumber in Frontend.
+const DepositStruct = ss.object({
+  recipient: ss.string(),
+  tokenAddress: ss.string(),
+  amount: ss.string(), // This was BigNumber in Frontend.
+  destinationChainId: ss.number(), // This is ChainId Enum in Frontend.
+  relayerFeePct: ss.string(), // This was BigNumber in Frontend.
+  quoteTimestamp: ss.string(), // This was BigNumber in Frontend.
+  message: ss.string(),
+  maxCount: ss.string(), // This was BigNumber in Frontend.
+  txValue: ss.string(), // This was BigNumber in Frontend.
+});
+
+type DepositData = ss.Infer<typeof DepositStruct>;
+
+interface AuctionData {
+  auctionId: string;
+  deposit: DepositData;
 }
 
-type EmitDeposit = (type: 'Deposit', depositType: DepositData) => void;
+type EmitDeposit = (type: 'Deposit', dataType: AuctionData) => void;
 
 type EmitTypes = EmitDeposit; // TODO: Add EmitComplete.
 
-// Helper type guard for dictionary objects.
-const isDictionary = (arg: unknown): arg is Record<string, unknown> => {
-  return typeof arg === "object" && arg !== null && !Array.isArray(arg);
-};
-
-// Type guard for DepositData.
-const isDepositData = (depositData: unknown): depositData is DepositData => {
-  if (!isDictionary(depositData)) return false;
+const isValidDepositData = (depositData: DepositData): boolean => {
   try {
     return (
-      typeof depositData.recipient == "string" &&
       ethersUtils.isAddress(depositData.recipient) &&
-      typeof depositData.tokenAddress == "string" &&
       ethersUtils.isAddress(depositData.tokenAddress) &&
       Number(depositData.destinationChainId) > 0 && // If this is not supported chain, will fallback to regular deposit.
       BigNumber.from(depositData.amount).gte(0) && // Lower bound for uint256
@@ -51,17 +50,6 @@ const isDepositData = (depositData: unknown): depositData is DepositData => {
   }
 };
 
-const parseDepositData = (stringifiedParams: string): DepositData => {
-  let depositData;
-  try {
-    depositData = JSON.parse(stringifiedParams);
-  } catch {
-    throw new Error("Invalid Deposit parameters");
-  }
-  if (!isDepositData(depositData)) throw new Error("Invalid Deposit parameters");
-  return depositData;
-};
-
 export class Auction {
   private bidWaitTimeMs: number;
   private emit: EmitTypes;
@@ -71,9 +59,16 @@ export class Auction {
     this.emit = emit;
   }
 
-  async deposit(stringifiedParams: string): Promise<void> {
-    const depositData = parseDepositData(stringifiedParams);
+  async deposit(depositData: DepositData): Promise<void> {
+    if (!isValidDepositData(depositData)) throw new Error("Invalid depositData");
 
-    this.emit('Deposit', depositData);
+    // Announce auction to bidders.
+    this.emit('Deposit', { auctionId: "0x0", depositData });
+
+    await this.sleep(this.bidWaitTimeMs);
+  }
+
+  private sleep(ms: number) {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 }

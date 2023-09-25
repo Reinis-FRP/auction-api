@@ -36,28 +36,6 @@ type EmitDeposit = (type: "Deposit", dataType: AuctionData) => void;
 
 type EmitTypes = EmitDeposit; // TODO: Add EmitComplete.
 
-const isValidDepositData = (deposit: DepositData): boolean => {
-  try {
-    return (
-      ethersUtils.isAddress(deposit.recipient) &&
-      ethersUtils.isAddress(deposit.tokenAddress) &&
-      Number(deposit.destinationChainId) > 0 && // If this is not supported chain, will fallback to regular deposit.
-      BigNumber.from(deposit.amount).gte(0) && // Lower bound for uint256
-      BigNumber.from(deposit.amount).lte(ethersConstants.MaxUint256) && // Upper bound for uint256
-      BigNumber.from(deposit.relayerFeePct).gte(BigNumber.from(2).pow(63).mul(-1)) && // Lower bound for int64
-      BigNumber.from(deposit.relayerFeePct).lt(BigNumber.from(2).pow(63)) && // Upper bound for int64
-      BigNumber.from(deposit.quoteTimestamp).gte(0) && // Lower bound for uint32
-      BigNumber.from(deposit.relayerFeePct).lt(BigNumber.from(2).pow(32)) && // Upper bound for uint32
-      BigNumber.from(deposit.maxCount).gte(0) && // Lower bound for uint256
-      BigNumber.from(deposit.maxCount).lte(ethersConstants.MaxUint256) && // Upper bound for uint256
-      BigNumber.from(deposit.txValue).gte(0) && // Lower bound for uint256
-      BigNumber.from(deposit.txValue).lte(ethersConstants.MaxUint256) // Upper bound for uint256
-    );
-  } catch {
-    return false;
-  }
-};
-
 export class Auction {
   private bidWaitTimeMs: number;
   private emit: EmitTypes;

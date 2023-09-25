@@ -42,5 +42,6 @@ export async function Init(config: Config, auction:Auction) {
   await new Promise((res) => {
     app.listen(config.port, () => res(app));
   });
-  console.log("Db UI on port:" + config.port);
+  console.log('Listening on ' + config.port)
+  return app
 }

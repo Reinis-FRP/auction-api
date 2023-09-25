@@ -4,16 +4,17 @@ import Events from 'events'
 
 import * as express from './express'
 import * as ws from './ws'
+import * as auction from './auction'
 
 dotenv.config()
 
 async function run(env:NodeJS.ProcessEnv){
   const port = Number(env.port ?? 2999)
+  const bidWaitTimeMs = Number(env.bidWaitTimeMs ?? 60*1000)
+
   const events = new Events()
-  // todo add auction here
-  // const auction = new Auction((type,data)=>events.emit('message',type,data))
-  const auction = {}
-  const app = await express.Init({port},auction)
+  const _auction = new auction.Auction({bidWaitTimeMs},(type,data)=>events.emit('message',type,data))
+  const app = await express.Init({port},_auction)
   const server = http.createServer(app);
   const broadcast = ws.WsApp(server)
 

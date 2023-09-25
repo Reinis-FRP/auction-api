@@ -1,3 +1,4 @@
+import assert from "assert";
 import { BigNumber, constants as ethersConstants, utils as ethersUtils } from "ethers";
 import * as ss from "superstruct";
 
@@ -19,7 +20,7 @@ export const DepositStruct = ss.object({
 
 export type DepositData = ss.Infer<typeof DepositStruct>;
 
-export interface AuctionData {
+export interface AuctionBroadcastData {
   auctionId: string;
   deposit: DepositData;
   bidDeadline: number;
@@ -32,19 +33,24 @@ export const BidStruct = ss.object({
 
 export type BidData = ss.Infer<typeof BidStruct>;
 
-type EmitDeposit = (type: "Deposit", dataType: AuctionData) => void;
+interface AuctionData {
+  deposit: DepositData;
+  bids: Map<string, BidData>;
+}
+
+type EmitDeposit = (type: "Deposit", dataType: AuctionBroadcastData) => void;
 
 type EmitTypes = EmitDeposit; // TODO: Add EmitComplete.
 
 export class Auction {
   private bidWaitTimeMs: number;
   private emit: EmitTypes;
-  private auctions: Map<string, DepositData>;
+  private auctions: Map<string, AuctionData>;
 
   constructor(config: AuctionConfig, emit: EmitTypes) {
     this.bidWaitTimeMs = config.bidWaitTimeMs;
     this.emit = emit;
-    this.auctions = new Map<string, DepositData>();
+    this.auctions = new Map<string, AuctionData>();
   }
 
   async deposit(deposit: DepositData): Promise<void> {
@@ -55,7 +61,7 @@ export class Auction {
     // Normally conflicts should not be possible as we delete concluded auctions at the end.
     if (this.auctions.has(auctionId)) throw new Error("Conflicting auction is running");
 
-    this.auctions.set(auctionId, deposit);
+    this.auctions.set(auctionId, { deposit, bids: new Map<string, BidData>() });
 
     const bidDeadline = new Date().getTime() + this.bidWaitTimeMs;
 
@@ -64,12 +70,39 @@ export class Auction {
 
     await this.sleep(this.bidWaitTimeMs);
 
+    const winningBid = this.endAuction(auctionId); // TODO: construct return data based on this.
+
     // Delete the concluded auction so that no more bids can be accepted.
     this.auctions.delete(auctionId);
   }
 
   async bid(bid: BidData): Promise<void> {
-    if (!this.isValidBidData(bid)) throw new Error("Invalid bid data");
+    if (!this.isValidBidData(bid)) throw new Error("Invalid bid data"); // Also checks if auction exists (is open).
+
+    const auction = this.auctions.get(bid.auctionId);
+    assert(auction !== undefined); // Only for accessing bids below as validation checked the auction is open.
+    auction.bids.set(bid.relayerAddress, bid); // We allow relayer to change their bids.
+  }
+
+  private endAuction(auctionId: string): BidData | null {
+    const auction = this.auctions.get(auctionId);
+    assert(auction !== undefined, "Non-existing auction");
+
+    const winningBid = this.getRandomBid(auction.bids);
+    // TODO: add EmitComplete.
+
+    return winningBid;
+  }
+
+  private getRandomBid(bids: Map<string, BidData>): BidData | null {
+    if (bids.size === 0) return null; // Caller has to handle this.
+
+    const keysArray = Array.from(bids.keys());
+    const randomIndex = Math.floor(Math.random() * keysArray.length);
+    const randomBidder = keysArray[randomIndex];
+    const randomBid = bids.get(randomBidder);
+    assert(randomBid !== undefined);
+    return randomBid;
   }
 
   private sleep(ms: number) {
@@ -123,6 +156,7 @@ export class Auction {
 
   private isValidBidData(bid: BidData): boolean {
     try {
+      // TODO: add signature verification.
       return ethersUtils.isAddress(bid.relayerAddress) && this.auctions.has(bid.auctionId);
     } catch {
       return false;

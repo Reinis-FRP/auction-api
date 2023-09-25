@@ -1,5 +1,9 @@
 import { BigNumber, constants as ethersConstants, utils as ethersUtils } from "ethers";
 
+interface AuctionConfig {
+  bidWaitTimeMs: number;
+}
+
 interface DepositData {
   recipient: string;
   tokenAddress: string;
@@ -11,6 +15,10 @@ interface DepositData {
   maxCount: string; // This was BigNumber in Frontend.
   txValue: string; // This was BigNumber in Frontend.
 }
+
+type EmitDeposit = (type: 'Deposit', depositType: DepositData) => void;
+
+type EmitTypes = EmitDeposit; // TODO: Add EmitComplete.
 
 // Helper type guard for dictionary objects.
 const isDictionary = (arg: unknown): arg is Record<string, unknown> => {
@@ -55,7 +63,17 @@ const parseDepositData = (stringifiedParams: string): DepositData => {
 };
 
 export class Auction {
+  private bidWaitTimeMs: number;
+  private emit: EmitTypes;
+
+  constructor(config: AuctionConfig, emit: EmitTypes) {
+    this.bidWaitTimeMs = config.bidWaitTimeMs;
+    this.emit = emit;
+  }
+
   async deposit(stringifiedParams: string): Promise<void> {
     const depositData = parseDepositData(stringifiedParams);
+
+    this.emit('Deposit', depositData);
   }
 }

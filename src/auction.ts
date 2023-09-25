@@ -25,6 +25,13 @@ export interface AuctionData {
   bidDeadline: number;
 }
 
+export const BidStruct = ss.object({
+  auctionId: ss.string(),
+  relayerAddress: ss.string(),
+});
+
+export type BidData = ss.Infer<typeof BidStruct>;
+
 type EmitDeposit = (type: "Deposit", dataType: AuctionData) => void;
 
 type EmitTypes = EmitDeposit; // TODO: Add EmitComplete.
@@ -59,11 +66,11 @@ export class Auction {
   constructor(config: AuctionConfig, emit: EmitTypes) {
     this.bidWaitTimeMs = config.bidWaitTimeMs;
     this.emit = emit;
-    this.auctions = new Map<string, DepositData>;
+    this.auctions = new Map<string, DepositData>();
   }
 
   async deposit(deposit: DepositData): Promise<void> {
-    if (!isValidDepositData(deposit)) throw new Error("Invalid deposit data");
+    if (!this.isValidDepositData(deposit)) throw new Error("Invalid deposit data");
 
     const auctionId = this.generateAuctionId(deposit);
 
@@ -83,8 +90,34 @@ export class Auction {
     this.auctions.delete(auctionId);
   }
 
+  async bid(bid: BidData): Promise<void> {
+    if (!this.isValidBidData(bid)) throw new Error("Invalid bid data");
+  }
+
   private sleep(ms: number) {
     return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  private isValidDepositData(deposit: DepositData): boolean {
+    try {
+      return (
+        ethersUtils.isAddress(deposit.recipient) &&
+        ethersUtils.isAddress(deposit.tokenAddress) &&
+        Number(deposit.destinationChainId) > 0 && // If this is not supported chain, will fallback to regular deposit.
+        BigNumber.from(deposit.amount).gte(0) && // Lower bound for uint256
+        BigNumber.from(deposit.amount).lte(ethersConstants.MaxUint256) && // Upper bound for uint256
+        BigNumber.from(deposit.relayerFeePct).gte(BigNumber.from(2).pow(63).mul(-1)) && // Lower bound for int64
+        BigNumber.from(deposit.relayerFeePct).lt(BigNumber.from(2).pow(63)) && // Upper bound for int64
+        BigNumber.from(deposit.quoteTimestamp).gte(0) && // Lower bound for uint32
+        BigNumber.from(deposit.relayerFeePct).lt(BigNumber.from(2).pow(32)) && // Upper bound for uint32
+        BigNumber.from(deposit.maxCount).gte(0) && // Lower bound for uint256
+        BigNumber.from(deposit.maxCount).lte(ethersConstants.MaxUint256) && // Upper bound for uint256
+        BigNumber.from(deposit.txValue).gte(0) && // Lower bound for uint256
+        BigNumber.from(deposit.txValue).lte(ethersConstants.MaxUint256) // Upper bound for uint256
+      );
+    } catch {
+      return false;
+    }
   }
 
   private generateAuctionId(data: DepositData): string {
@@ -108,5 +141,13 @@ export class Auction {
     const hash = ethersUtils.keccak256(encodedBytes);
 
     return hash.substring(0, 10); // Extract the first 4 bytes (8 characters) from the hash.
+  }
+
+  private isValidBidData(bid: BidData): boolean {
+    try {
+      return ethersUtils.isAddress(bid.relayerAddress) && this.auctions.has(bid.auctionId);
+    } catch {
+      return false;
+    }
   }
 }

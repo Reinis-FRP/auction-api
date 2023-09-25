@@ -1,0 +1,21 @@
+{
+    "compilerOptions": {
+      "target": "es2022",
+      "module": "commonjs",
+      "esModuleInterop": true,
+      "outDir": "./dist",
+      "declaration": true,
+      "skipLibCheck": true,
+      "resolveJsonModule": true,
+      "strict": true,
+      "noImplicitAny": false
+    },
+    "include": ["./src", "index.ts"],
+    "watchOptions": {
+      "watchFile": "useFsEventsOnParentDirectory",
+      "watchDirectory": "useFsEvents",
+      "fallbackPolling": "dynamicPriority",
+      "synchronousWatchDirectory": true,
+      "excludeDirectories": ["**/node_modules", "dist"]
+    }
+  }

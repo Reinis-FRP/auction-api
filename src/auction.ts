@@ -44,6 +44,11 @@ export interface BidBroadcastData {
   bidTimeMs: number; // Bid submission time in ms.
 }
 
+export interface AuctionCompleteBroadcastData {
+  auctionId: string;
+  winningRelayer?: string; // Not set when falling back to non-exclusive relay filling.
+}
+
 interface AuctionData {
   deposit: DepositData;
   expiry: number; // Time in seconds since Unix epoch for how long winning bidder will have exclusive fill rights.
@@ -58,7 +63,7 @@ export interface DepositReturnData {
 
 type EmitDeposit = (data: AuctionBroadcastData) => void;
 type EmitBid = (data: BidBroadcastData) => void;
-type EmitComplete = (data: { auctionId: string }) => void;
+type EmitComplete = (data: AuctionCompleteBroadcastData) => void;
 
 export type EventEmitter = {
   deposit: EmitDeposit;
@@ -125,8 +130,9 @@ export class Auction {
     assert(auction !== undefined, "Non-existing auction");
 
     const winningBid = this.getRandomBid(auction.bids);
+    const winningRelayer = winningBid !==null ? winningBid.relayerAddress : undefined;
 
-    this.emitter.complete({ auctionId }); // TODO: revise emitted data to potentially include winner if not null.
+    this.emitter.complete({ auctionId, winningRelayer });
 
     return winningBid;
   }

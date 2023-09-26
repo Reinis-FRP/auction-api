@@ -8,7 +8,7 @@
   "license": "AGPL-3.0-only",
   "private": true,
   "scripts": {
-    "start": "node dist/main",
+    "start": "yarn build && node dist/main",
     "build": "tsc",
     "watch": "tsc --watch",
     "lint": "eslint --fix",
@@ -22,6 +22,7 @@
     "@types/ws": "^8.5.5",
     "@typescript-eslint/eslint-plugin": "^6.4.0",
     "@typescript-eslint/parser": "^6.7.2",
+    "axios": "^1.5.0",
     "eslint": "^8.0.1",
     "eslint-config-prettier": "^9.0.0",
     "eslint-config-standard": "^17.1.0",

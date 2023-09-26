@@ -2,7 +2,7 @@ import assert from "assert";
 import { BigNumber, constants as ethersConstants, utils as ethersUtils } from "ethers";
 import * as ss from "superstruct";
 
-import { gauntletDeployments } from "./constants";
+import { baseDomain, gauntletDeployments, signatureTypes } from "./constants";
 
 interface AuctionConfig {
   bidWaitTimeMs: number;
@@ -40,6 +40,7 @@ export type BidData = ss.Infer<typeof BidStruct>;
 
 interface AuctionData {
   deposit: DepositData;
+  expiry: number; // Time in seconds since Unix epoch for how long winning bidder will have exclusive fill rights.
   bids: Map<string, BidData>;
 }
 
@@ -78,17 +79,17 @@ export class Auction {
     // Normally conflicts should not be possible as we delete concluded auctions at the end.
     if (this.auctions.has(auctionId)) throw new Error("Conflicting auction is running");
 
-    this.auctions.set(auctionId, { deposit, bids: new Map<string, BidData>() });
-
     const bidDeadlineMs = new Date().getTime() + this.bidWaitTimeMs;
     const expiry = Math.floor(bidDeadlineMs / 1000) + this.winnerPermissionTime; // In seconds since UNIX epoch.
+
+    this.auctions.set(auctionId, { deposit, bids: new Map<string, BidData>(), expiry });
 
     // Announce auction to bidders.
     this.emitter.deposit({ auctionId, deposit, bidDeadlineMs, expiry });
 
     await this.sleep(this.bidWaitTimeMs);
 
-    const winningBid = this.endAuction(auctionId); // TODO: construct return data based on this.
+    const winningBid = this.endAuction(auctionId);
 
     const depositReturnData = this.generateDepositReturnData(deposit, winningBid);
 
@@ -178,9 +179,8 @@ export class Auction {
     return hash.substring(0, 10); // Extract the first 4 bytes (8 characters) from the hash.
   }
 
-  private isValidBidData(bid: BidData): boolean {
+  private isValidBidFormat(bid: BidData): boolean {
     try {
-      // TODO: add signature verification.
       return (
         ethersUtils.isAddress(bid.relayerAddress) &&
         ethersUtils.isBytesLike(bid.signature) &&
@@ -190,6 +190,28 @@ export class Auction {
     } catch {
       return false;
     }
+  }
+
+  private isValidBidData(bid: BidData): boolean {
+    if (!this.isValidBidFormat(bid)) return false;
+
+    const auction = this.auctions.get(bid.auctionId);
+    if (auction === undefined) return false; // No matching auctionId.
+
+    const domain = { ...baseDomain, chainId: auction.deposit.destinationChainId };
+
+    const signedAuctionData = {
+      id: Number(bid.auctionId),
+      expiry: Number(auction.expiry), // This should have been broadcasted, so bidder should have signed this.
+    };
+
+    let signerAddress: string;
+    try {
+      signerAddress = ethersUtils.verifyTypedData(domain, signatureTypes, signedAuctionData, bid.signature);
+    } catch {
+      return false; // Failed to process signature verification.
+    }
+    return ethersUtils.getAddress(bid.relayerAddress) === signerAddress; // Should be signed by bidding relayer.
   }
 
   private generateDepositReturnData(deposit: DepositData, winningBid: BidData | null): DepositReturnData {

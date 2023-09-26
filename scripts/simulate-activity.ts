@@ -13,7 +13,10 @@ const testDeposit = {
 }
 
 async function run(){
-  const client = Client()
+  const client = Client({
+    handleComplete:console.log,
+    handleDeposit:console.log,
+  })
   const depositResult = await client.deposit(testDeposit)
   console.log({depositResult})
 }

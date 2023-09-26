@@ -38,6 +38,12 @@ export const BidStruct = ss.object({
 
 export type BidData = ss.Infer<typeof BidStruct>;
 
+export interface BidBroadcastData {
+  auctionId: string;
+  relayerAddress: string;
+  bidTimeMs: number; // Bid submission time in ms.
+}
+
 interface AuctionData {
   deposit: DepositData;
   expiry: number; // Time in seconds since Unix epoch for how long winning bidder will have exclusive fill rights.
@@ -51,10 +57,12 @@ export interface DepositReturnData {
 }
 
 type EmitDeposit = (data: AuctionBroadcastData) => void;
+type EmitBid = (data: BidBroadcastData) => void;
 type EmitComplete = (data: { auctionId: string }) => void;
 
 export type EventEmitter = {
   deposit: EmitDeposit;
+  bid: EmitBid;
   complete: EmitComplete;
 };
 
@@ -100,11 +108,16 @@ export class Auction {
   }
 
   async bid(bid: BidData): Promise<void> {
+    const bidTimeMs = new Date().getTime();
+
     if (!this.isValidBidData(bid)) throw new Error("Invalid bid data"); // Also checks if auction exists (is open).
 
     const auction = this.auctions.get(bid.auctionId);
     assert(auction !== undefined); // Only for accessing bids below as validation checked the auction is open.
     auction.bids.set(bid.relayerAddress, bid); // We allow relayer to change their bids.
+
+    // Announce the bid.
+    this.emitter.bid({ auctionId: bid.auctionId, relayerAddress: bid.relayerAddress, bidTimeMs });
   }
 
   private endAuction(auctionId: string): BidData | null {

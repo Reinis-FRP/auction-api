@@ -15,6 +15,7 @@ export async function Server(env?: NodeJS.ProcessEnv) {
 
   const emitter: auction.EventEmitter = {
     deposit: (data) => events.emit("message", "Deposit", data),
+    bid: (data) => events.emit("message", "Bid", data),
     complete: (data) => events.emit("message", "AuctionComplete", data),
   };
 
@@ -30,6 +31,9 @@ export async function Server(env?: NodeJS.ProcessEnv) {
       switch (type) {
         case "Deposit":
           broadcast.startAuction(broadcastData);
+          break;
+        case "Bid":
+          broadcast.submitBid(broadcastData);
           break;
         case "AuctionComplete":
           broadcast.endAuction(broadcastData);

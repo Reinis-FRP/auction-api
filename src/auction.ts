@@ -2,8 +2,11 @@ import assert from "assert";
 import { BigNumber, constants as ethersConstants, utils as ethersUtils } from "ethers";
 import * as ss from "superstruct";
 
+import { gauntletDeployments } from "./constants";
+
 interface AuctionConfig {
   bidWaitTimeMs: number;
+  winnerPermissionTime: number;
 }
 
 export const DepositStruct = ss.object({
@@ -23,12 +26,14 @@ export type DepositData = ss.Infer<typeof DepositStruct>;
 export interface AuctionBroadcastData {
   auctionId: string;
   deposit: DepositData;
-  bidDeadline: number;
+  bidDeadlineMs: number; // Bid deadline in ms.
+  expiry: number; // Time in seconds since Unix epoch for how long winning bidder will have exclusive fill rights.
 }
 
 export const BidStruct = ss.object({
   auctionId: ss.string(),
   relayerAddress: ss.string(),
+  signature: ss.string(),
 });
 
 export type BidData = ss.Infer<typeof BidStruct>;
@@ -54,16 +59,18 @@ export type EventEmitter = {
 
 export class Auction {
   private bidWaitTimeMs: number;
+  private winnerPermissionTime: number;
   private emitter: EventEmitter;
   private auctions: Map<string, AuctionData>;
 
   constructor(config: AuctionConfig, emitter: EventEmitter) {
     this.bidWaitTimeMs = config.bidWaitTimeMs;
+    this.winnerPermissionTime = config.winnerPermissionTime;
     this.emitter = emitter;
     this.auctions = new Map<string, AuctionData>();
   }
 
-  async deposit(deposit: DepositData): Promise<void> {
+  async deposit(deposit: DepositData): Promise<DepositReturnData> {
     if (!this.isValidDepositData(deposit)) throw new Error("Invalid deposit data");
 
     const auctionId = this.generateAuctionId(deposit);
@@ -73,17 +80,22 @@ export class Auction {
 
     this.auctions.set(auctionId, { deposit, bids: new Map<string, BidData>() });
 
-    const bidDeadline = new Date().getTime() + this.bidWaitTimeMs;
+    const bidDeadlineMs = new Date().getTime() + this.bidWaitTimeMs;
+    const expiry = Math.floor(bidDeadlineMs / 1000) + this.winnerPermissionTime; // In seconds since UNIX epoch.
 
     // Announce auction to bidders.
-    this.emitter.deposit({ auctionId, deposit, bidDeadline });
+    this.emitter.deposit({ auctionId, deposit, bidDeadlineMs, expiry });
 
     await this.sleep(this.bidWaitTimeMs);
 
     const winningBid = this.endAuction(auctionId); // TODO: construct return data based on this.
 
+    const depositReturnData = this.generateDepositReturnData(deposit, winningBid);
+
     // Delete the concluded auction so that no more bids can be accepted.
     this.auctions.delete(auctionId);
+
+    return depositReturnData;
   }
 
   async bid(bid: BidData): Promise<void> {
@@ -169,9 +181,37 @@ export class Auction {
   private isValidBidData(bid: BidData): boolean {
     try {
       // TODO: add signature verification.
-      return ethersUtils.isAddress(bid.relayerAddress) && this.auctions.has(bid.auctionId);
+      return (
+        ethersUtils.isAddress(bid.relayerAddress) &&
+        ethersUtils.isBytesLike(bid.signature) &&
+        ethersUtils.arrayify(bid.signature).length === 65 &&
+        this.auctions.has(bid.auctionId)
+      );
     } catch {
       return false;
     }
+  }
+
+  private generateDepositReturnData(deposit: DepositData, winningBid: BidData | null): DepositReturnData {
+    const { recipient, relayerFeePct, message } = deposit;
+
+    // Return the same inputs if there is no winner or we don't have deployment for target chain.
+    if (winningBid === null || !gauntletDeployments.hasOwnProperty(deposit.destinationChainId))
+      return { recipient, relayerFeePct, message };
+
+    const newRecipient = gauntletDeployments[deposit.destinationChainId];
+
+    const expiry = Math.floor(new Date().getTime() / 1000) + this.winnerPermissionTime; // In seconds since UNIX epoch.
+
+    const newMessageBytes = [
+      ...ethersUtils.arrayify(winningBid.auctionId), // auctionId is already 4 bytes hex string.
+      ...ethersUtils.zeroPad(ethersUtils.arrayify(expiry), 4), // uint32 takes 4 bytes.
+      ...ethersUtils.arrayify(recipient), // deposit data was validated to have this in address format.
+      ...ethersUtils.zeroPad(ethersUtils.arrayify(0), 65), // TODO: add signature from bid.
+      // TODO: ignore original message for now.
+    ];
+    const newMessage = ethersUtils.hexlify(newMessageBytes);
+
+    return { recipient: newRecipient, relayerFeePct, message: newMessage };
   }
 }

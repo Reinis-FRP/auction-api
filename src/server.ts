@@ -8,7 +8,8 @@ import * as auction from "./auction";
 // This retrns the express server so we can hook and test it using supertest
 export async function Server(env?: NodeJS.ProcessEnv) {
   const port = Number(env?.port ?? 2999);
-  const bidWaitTimeMs = Number(env?.bidWaitTimeMs ?? 60 * 1000);
+  const bidWaitTimeMs = Number(env?.bidWaitTimeMs ?? 60 * 1000); // Default to 60s (in ms).
+  const winnerPermissionTime = Number(env?.winnerPermissionTime ?? 60 * 5); // Default to 5m (in s).
 
   const events = new Events();
 
@@ -17,7 +18,7 @@ export async function Server(env?: NodeJS.ProcessEnv) {
     complete: (data) => events.emit("message", "AuctionComplete", data),
   };
 
-  const _auction = new auction.Auction({ bidWaitTimeMs }, emitter);
+  const _auction = new auction.Auction({ bidWaitTimeMs, winnerPermissionTime }, emitter);
   const app = express.ExpressApp(_auction);
   const server = http.createServer(app);
   const broadcast = ws.WsApp(server);

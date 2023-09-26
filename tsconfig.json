@@ -11,7 +11,7 @@
       "noImplicitAny": false,
       "types": ["node"]
     },
-    "include": ["./src"],
+    "include": ["./src","./scripts"],
     "watchOptions": {
       "watchFile": "useFsEventsOnParentDirectory",
       "watchDirectory": "useFsEvents",

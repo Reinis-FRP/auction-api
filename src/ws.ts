@@ -16,12 +16,16 @@ export function WsApp(server: Server) {
   function startAuction(data: string) {
     broadcast(data);
   }
+  function submitBid(data: string) {
+    broadcast(data);
+  }
   function endAuction(data: string) {
     broadcast(data);
   }
 
   return {
     startAuction,
+    submitBid,
     endAuction,
   };
 }

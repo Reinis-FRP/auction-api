@@ -28,6 +28,7 @@ const CompleteEventData = ss.object({
   type:ss.literal('AuctionComplete'),
   data:ss.object({
     auctionId: ss.string(),
+    winningRelayer: ss.optional(ss.string()),
   })
 })
 

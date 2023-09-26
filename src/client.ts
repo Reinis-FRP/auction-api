@@ -1,33 +1,70 @@
 import WebSocket from 'ws';
+import assert from 'assert'
+import { Wallet} from 'ethers'
 
 import * as auction from './auction'
 import * as ss from 'superstruct'
 
 const DepositReturnData = ss.object({
+  recipient: ss.string(),
+  relayerFeePct: ss.string(),
+  message: ss.string(),
+})
+export type DepositReturnData = ss.Infer<typeof DepositReturnData>;
+
+const DepositEventData = ss.object({
   type:ss.literal('Deposit'),
   data:ss.object({
     auctionId: ss.string(),
     deposit: auction.DepositStruct,
     bidDeadlineMs: ss.number(),
-    expiry: ss.number()
+    expiry: ss.number(),
   })
 })
 
-export type DepositReturnData = ss.Infer<typeof DepositReturnData>;
+export type DepositEventData = ss.Infer<typeof DepositEventData>;
 
-const CompleteReturnData = ss.object({
+const CompleteEventData = ss.object({
   type:ss.literal('AuctionComplete'),
   data:ss.object({
     auctionId: ss.string(),
   })
 })
 
-export type CompleteReturnData = ss.Infer<typeof CompleteReturnData>;
-type Config = { 
+export type CompleteEventData = ss.Infer<typeof CompleteEventData>;
+
+const BidEventData = ss.object({
+  type:ss.literal('Bid'),
+  data:ss.object({
+    auctionId: ss.string(),
+    relayerAddress: ss.string(),
+    bidTimeMs: ss.number(),
+  }),
+})
+export type Config = { 
   baseUrl?:string;
-  handleDeposit?:(data:DepositReturnData["data"])=>void;
-  handleComplete?:(data:CompleteReturnData["data"])=>void;
+  handleDeposit?:(data:DepositEventData["data"])=>void;
+  handleComplete?:(data:CompleteEventData["data"])=>void;
+  handleBid?:(data:CompleteEventData["data"])=>void;
   handleError?:(error:Error)=>void;
+}
+// something is wrong wiht this signer
+export async function signMessage(auctionId:string,expiry:number, wallet:Wallet) {
+  const baseDomain = {
+    name: "RelayerCartel",
+    version: "0",
+    chainId: 1, // Will be overriden with actual target chainId.
+  };
+  const signatureTypes = {
+    auction: [
+      { name: "id", type: "uint32" },
+      { name: "expiry", type: "uint32" },
+    ],
+  };
+
+  const domain = { ...baseDomain, chainId: 5 }; // Replace with destination chain
+  const signedAuctionData = {id: Number(auctionId), expiry}; // Replace `auctionId` and `expiry`
+  return wallet._signTypedData(domain, signatureTypes, signedAuctionData);
 }
 async function postData(url = '', data = {}) {
   // Default options are marked with *
@@ -49,7 +86,8 @@ async function postData(url = '', data = {}) {
     const responseData = await response.json();
     return responseData;
   } catch (error) {
-    return response.text()
+    console.log(error)
+    return undefined
   }
 }
 export function Client(config:Config={}){
@@ -59,11 +97,13 @@ export function Client(config:Config={}){
   ws.on('message',(data:WebSocket.Data)=>{
     try{
       const json:unknown = JSON.parse(data.toString())
-      if(config.handleComplete && ss.is(json,CompleteReturnData)){
+      if(config.handleComplete && ss.is(json,CompleteEventData)){
         config.handleComplete(json.data)
-      }
-      if(config.handleDeposit && ss.is(json,DepositReturnData)){
+      }else if(config.handleDeposit && ss.is(json,DepositEventData)){
         config.handleDeposit(json.data)
+      }else if(config.handleBid && ss.is(json,BidEventData)){
+      }{
+        console.log('unknown ws event:',json)
       }
     }catch(err){
       config.handleError && config.handleError(err as Error)
@@ -71,11 +111,14 @@ export function Client(config:Config={}){
   })
 
   async function deposit(params:auction.DepositData){
-    return postData([baseUrl,'deposit'].join('/'),params )
+    return ss.create(await postData([baseUrl,'deposit'].join('/'),params ),DepositReturnData)
   }
   // TODO figure out signing
-  async function bid(params:auction.BidData){
-    return postData([baseUrl,'bid'].join('/'),params )
+  async function bid(privateKey:string, params:{expiry:number,auctionId:string}){
+    const wallet = new Wallet(privateKey)
+    const signature = await signMessage(params.auctionId,params.expiry,wallet)
+    console.log({auctionId:params.auctionId,relayerAddress:wallet.address,signature})
+    return postData([baseUrl,'bid'].join('/'),{auctionId:params.auctionId,relayerAddress:wallet.address,signature} )
   }
   return {deposit,bid}
 }

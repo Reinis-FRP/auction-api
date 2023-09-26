@@ -1,4 +1,8 @@
+import assert from 'assert'
+import * as dotenv from 'dotenv'
 import {Client } from '../src/client'
+dotenv.config()
+
 
 const testDeposit = {
   "recipient": "0x9A8f92a830A5cB89a3816e3D267CB7791c16b04D",
@@ -11,14 +15,24 @@ const testDeposit = {
   "maxCount": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
   "txValue": "0"
 }
+const testBid = {
+  "auctionId":"0x1231597c",
+  "relayerAddress":"0x9A8f92a830A5cB89a3816e3D267CB7791c16b04D",
+  "signature":"0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+}
 
 async function run(){
+  const privateKey = process.env.privateKey
+  assert(privateKey,'requires privateKey env')
   const client = Client({
+    handleDeposit:(data=>{
+      console.log('new auction',data)
+      client.bid(privateKey,{auctionId:data.auctionId,expiry:data.expiry}).then(console.log)
+    }),
+    handleBid:console.log,
     handleComplete:console.log,
-    handleDeposit:console.log,
   })
   const depositResult = await client.deposit(testDeposit)
-  console.log({depositResult})
 }
 
 run().then(()=>console.log('done')).catch(console.error)

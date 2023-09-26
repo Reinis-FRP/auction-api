@@ -20,15 +20,15 @@ test("server", (t) => {
     request(app)
       .post("/deposit")
       .send({
-        recipient:'test',
-        tokenAddress:'test',
+        recipient:'0x9A8f92a830A5cB89a3816e3D267CB7791c16b04D',
+        tokenAddress:'0x9A8f92a830A5cB89a3816e3D267CB7791c16b04D',
         amount:'10000',
         destinationChainId:10,
         relayerFeePct:'1',
-        quoteTimeStamp:1,
-        message:'',
-        maxCount:1,
-        txValue:1,
+        quoteTimestamp:'1',
+        message:'test',
+        maxCount:'1',
+        txValue:'1',
       })
       .set('Accept','application/json')
       .expect('Content-Type','/json/')

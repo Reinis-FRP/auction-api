@@ -229,7 +229,7 @@ export class Auction {
       ...ethersUtils.arrayify(winningBid.auctionId), // auctionId is already 4 bytes hex string.
       ...ethersUtils.zeroPad(ethersUtils.arrayify(expiry), 4), // uint32 takes 4 bytes.
       ...ethersUtils.arrayify(recipient), // deposit data was validated to have this in address format.
-      ...ethersUtils.zeroPad(ethersUtils.arrayify(0), 65), // TODO: add signature from bid.
+      ...ethersUtils.arrayify(winningBid.signature), // Signature was checked to be 65 bytes when verifying bids.
       // TODO: ignore original message for now.
     ];
     const newMessage = ethersUtils.hexlify(newMessageBytes);

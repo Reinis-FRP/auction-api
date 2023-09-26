@@ -230,7 +230,7 @@ export class Auction {
       ...ethersUtils.zeroPad(ethersUtils.arrayify(expiry), 4), // uint32 takes 4 bytes.
       ...ethersUtils.arrayify(recipient), // deposit data was validated to have this in address format.
       ...ethersUtils.arrayify(winningBid.signature), // Signature was checked to be 65 bytes when verifying bids.
-      // TODO: ignore original message for now.
+      ...ethersUtils.arrayify(deposit.message), // Wrap original deposit message.
     ];
     const newMessage = ethersUtils.hexlify(newMessageBytes);
 

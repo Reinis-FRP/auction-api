@@ -49,7 +49,7 @@ export type Config = {
   handleError?:(error:Error)=>void;
 }
 // something is wrong wiht this signer
-export async function signMessage(auctionId:string,expiry:number, wallet:Wallet) {
+export async function signMessage(params:{expiry:number,auctionId:string, chainId:number}, wallet:Wallet) {
   const baseDomain = {
     name: "RelayerCartel",
     version: "0",
@@ -62,8 +62,8 @@ export async function signMessage(auctionId:string,expiry:number, wallet:Wallet)
     ],
   };
 
-  const domain = { ...baseDomain, chainId: 5 }; // Replace with destination chain
-  const signedAuctionData = {id: Number(auctionId), expiry}; // Replace `auctionId` and `expiry`
+  const domain = { ...baseDomain, chainId: params.chainId }; // Replace with destination chain
+  const signedAuctionData = {id: Number(params.auctionId), expiry:params.expiry}; // Replace `auctionId` and `expiry`
   return wallet._signTypedData(domain, signatureTypes, signedAuctionData);
 }
 async function postData(url = '', data = {}) {
@@ -86,7 +86,7 @@ async function postData(url = '', data = {}) {
     const responseData = await response.json();
     return responseData;
   } catch (error) {
-    console.log(error)
+    // console.log(error)
     return undefined
   }
 }
@@ -102,7 +102,8 @@ export function Client(config:Config={}){
       }else if(config.handleDeposit && ss.is(json,DepositEventData)){
         config.handleDeposit(json.data)
       }else if(config.handleBid && ss.is(json,BidEventData)){
-      }{
+        config.handleBid(json.data)
+      }else {
         console.log('unknown ws event:',json)
       }
     }catch(err){
@@ -113,11 +114,9 @@ export function Client(config:Config={}){
   async function deposit(params:auction.DepositData){
     return ss.create(await postData([baseUrl,'deposit'].join('/'),params ),DepositReturnData)
   }
-  // TODO figure out signing
-  async function bid(privateKey:string, params:{expiry:number,auctionId:string}){
+  async function bid(privateKey:string, params:{expiry:number,auctionId:string, chainId:number}){
     const wallet = new Wallet(privateKey)
-    const signature = await signMessage(params.auctionId,params.expiry,wallet)
-    console.log({auctionId:params.auctionId,relayerAddress:wallet.address,signature})
+    const signature = await signMessage(params,wallet)
     return postData([baseUrl,'bid'].join('/'),{auctionId:params.auctionId,relayerAddress:wallet.address,signature} )
   }
   return {deposit,bid}

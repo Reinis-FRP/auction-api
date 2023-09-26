@@ -26,8 +26,7 @@ async function run(){
   assert(privateKey,'requires privateKey env')
   const client = Client({
     handleDeposit:(data=>{
-      console.log('new auction',data)
-      client.bid(privateKey,{auctionId:data.auctionId,expiry:data.expiry}).then(console.log)
+      client.bid(privateKey,{auctionId:data.auctionId,expiry:data.expiry, chainId:data.deposit.destinationChainId}).then(console.log)
     }),
     handleBid:console.log,
     handleComplete:console.log,

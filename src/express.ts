@@ -41,6 +41,7 @@ export function ExpressApp(_auction: auction.Auction) {
   });
 
   app.use(function (err: Error, req: Request, res: Response, next: NextFunction) {
+    console.error("Express error: " + err);
     res.status(500).send(err.message || err);
   });
 

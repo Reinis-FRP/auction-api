@@ -8,7 +8,7 @@
   "license": "AGPL-3.0-only",
   "private": true,
   "scripts": {
-    "start": "yarn build && node dist/main",
+    "start": "yarn build && node dist/src/main",
     "build": "tsc",
     "watch": "tsc --watch",
     "lint": "eslint --fix",

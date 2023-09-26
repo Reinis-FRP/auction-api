@@ -38,18 +38,28 @@ interface AuctionData {
   bids: Map<string, BidData>;
 }
 
-type EmitDeposit = (type: "Deposit", dataType: AuctionBroadcastData) => void;
+export interface DepositReturnData {
+  recipient: string; // Should be parsable as address by the client.
+  relayerFeePct: string; // Should be parsable as BigNumber by the client.
+  message: string; // Should be parsable as bytes by the client.
+}
 
-type EmitTypes = EmitDeposit; // TODO: Add EmitComplete.
+type EmitDeposit = (data: AuctionBroadcastData) => void;
+type EmitComplete = (data: { auctionId: string }) => void;
+
+export type EventEmitter = {
+  deposit: EmitDeposit;
+  complete: EmitComplete;
+};
 
 export class Auction {
   private bidWaitTimeMs: number;
-  private emit: EmitTypes;
+  private emitter: EventEmitter;
   private auctions: Map<string, AuctionData>;
 
-  constructor(config: AuctionConfig, emit: EmitTypes) {
+  constructor(config: AuctionConfig, emitter: EventEmitter) {
     this.bidWaitTimeMs = config.bidWaitTimeMs;
-    this.emit = emit;
+    this.emitter = emitter;
     this.auctions = new Map<string, AuctionData>();
   }
 
@@ -66,7 +76,7 @@ export class Auction {
     const bidDeadline = new Date().getTime() + this.bidWaitTimeMs;
 
     // Announce auction to bidders.
-    this.emit("Deposit", { auctionId, deposit, bidDeadline });
+    this.emitter.deposit({ auctionId, deposit, bidDeadline });
 
     await this.sleep(this.bidWaitTimeMs);
 
@@ -89,7 +99,8 @@ export class Auction {
     assert(auction !== undefined, "Non-existing auction");
 
     const winningBid = this.getRandomBid(auction.bids);
-    // TODO: add EmitComplete.
+
+    this.emitter.complete({ auctionId }); // TODO: revise emitted data to potentially include winner if not null.
 
     return winningBid;
   }
@@ -120,7 +131,7 @@ export class Auction {
         BigNumber.from(deposit.relayerFeePct).gte(BigNumber.from(2).pow(63).mul(-1)) && // Lower bound for int64
         BigNumber.from(deposit.relayerFeePct).lt(BigNumber.from(2).pow(63)) && // Upper bound for int64
         BigNumber.from(deposit.quoteTimestamp).gte(0) && // Lower bound for uint32
-        ethersUtils.isHexString(deposit.message) &&
+        ethersUtils.isBytesLike(deposit.message) &&
         BigNumber.from(deposit.relayerFeePct).lt(BigNumber.from(2).pow(32)) && // Upper bound for uint32
         BigNumber.from(deposit.maxCount).gte(0) && // Lower bound for uint256
         BigNumber.from(deposit.maxCount).lte(ethersConstants.MaxUint256) && // Upper bound for uint256

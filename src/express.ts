@@ -22,7 +22,7 @@ export function ExpressApp(_auction: auction.Auction) {
   app.post("/deposit", (req: Request, res: Response, next: NextFunction) => {
     try {
       ss.assert(req.body, auction.DepositStruct);
-      _auction.deposit(req.body).then(res.json).catch(next);
+      _auction.deposit(req.body).then(data => res.json(data)).catch(next);
     } catch (err) {
       next(err);
     }

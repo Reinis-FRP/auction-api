@@ -130,7 +130,7 @@ export class Auction {
     assert(auction !== undefined, "Non-existing auction");
 
     const winningBid = this.getRandomBid(auction.bids);
-    const winningRelayer = winningBid !==null ? winningBid.relayerAddress : undefined;
+    const winningRelayer = winningBid !== null ? winningBid.relayerAddress : undefined;
 
     this.emitter.complete({ auctionId, winningRelayer });
 

@@ -13,7 +13,8 @@ const testDeposit = {
   "quoteTimestamp": "1695742882",
   "message": "0x",
   "maxCount": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
-  "txValue": "0"
+  "txValue": "0",
+  "sourceChainId": 5
 }
 const testBid = {
   "auctionId":"0x1231597c",

@@ -19,6 +19,7 @@ export const DepositStruct = ss.object({
   message: ss.string(),
   maxCount: ss.string(), // This was BigNumber in Frontend.
   txValue: ss.string(), // This was BigNumber in Frontend.
+  sourceChainId: ss.number(), // This is ChainId Enum in Frontend.
 });
 
 export type DepositData = ss.Infer<typeof DepositStruct>;
@@ -157,6 +158,7 @@ export class Auction {
       return (
         ethersUtils.isAddress(deposit.recipient) &&
         ethersUtils.isAddress(deposit.tokenAddress) &&
+        Number(deposit.sourceChainId) > 0 &&
         Number(deposit.destinationChainId) > 0 && // If this is not supported chain, will fallback to regular deposit.
         BigNumber.from(deposit.amount).gte(0) && // Lower bound for uint256
         BigNumber.from(deposit.amount).lte(ethersConstants.MaxUint256) && // Upper bound for uint256
@@ -178,7 +180,7 @@ export class Auction {
   private generateAuctionId(data: DepositData): string {
     const abiCoder = new ethersUtils.AbiCoder();
     const encodedData = abiCoder.encode(
-      ["address", "address", "uint256", "uint256", "int64", "uint32", "bytes", "uint256", "uint256"],
+      ["address", "address", "uint256", "uint256", "int64", "uint32", "bytes", "uint256", "uint256", "uint256"],
       [
         data.recipient,
         data.tokenAddress,
@@ -189,6 +191,7 @@ export class Auction {
         data.message,
         data.maxCount,
         data.txValue,
+        data.sourceChainId,
       ],
     );
 

@@ -24,7 +24,9 @@ const testBid = {
 async function run(){
   const privateKey = process.env.privateKey
   assert(privateKey,'requires privateKey env')
+  const baseUrl = process.env.baseUrl
   const client = Client({
+    baseUrl,
     handleDeposit:(data=>{
       client.bid(privateKey,{auctionId:data.auctionId,expiry:data.expiry, chainId:data.deposit.destinationChainId}).then(console.log)
     }),

@@ -165,8 +165,8 @@ export class Auction {
         BigNumber.from(deposit.relayerFeePct).gte(BigNumber.from(2).pow(63).mul(-1)) && // Lower bound for int64
         BigNumber.from(deposit.relayerFeePct).lt(BigNumber.from(2).pow(63)) && // Upper bound for int64
         BigNumber.from(deposit.quoteTimestamp).gte(0) && // Lower bound for uint32
+        BigNumber.from(deposit.quoteTimestamp).lt(BigNumber.from(2).pow(32)) && // Upper bound for uint32
         ethersUtils.isBytesLike(deposit.message) &&
-        BigNumber.from(deposit.relayerFeePct).lt(BigNumber.from(2).pow(32)) && // Upper bound for uint32
         BigNumber.from(deposit.maxCount).gte(0) && // Lower bound for uint256
         BigNumber.from(deposit.maxCount).lte(ethersConstants.MaxUint256) && // Upper bound for uint256
         BigNumber.from(deposit.txValue).gte(0) && // Lower bound for uint256

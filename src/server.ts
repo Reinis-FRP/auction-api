@@ -26,6 +26,7 @@ export async function Server(env?: NodeJS.ProcessEnv) {
 
   // listen to events from auction and broadcast to websocket
   events.on("message", (type, data) => {
+    console.log(type, data);
     try {
       const broadcastData = JSON.stringify({ type, data });
       switch (type) {

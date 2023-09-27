@@ -29,6 +29,7 @@ test("server", (t) => {
         message: "0x",
         maxCount: "1",
         txValue: "1",
+        sourceChainId: 1,
       })
       .set("Accept", "application/json")
       .expect("Content-Type", "/json/")
